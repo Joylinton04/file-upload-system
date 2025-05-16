@@ -4,6 +4,7 @@ interface FileMeta {
   name: string;
   size: number;
   type: string;
+  base64: string;
 }
 
 interface AppContextValue {

@@ -2,6 +2,7 @@ import { ArrowUp, File } from "lucide-react";
 import React, { useContext, useState, type ChangeEvent } from "react";
 import { AppContent } from "./context/AppContext";
 import { useAppContext } from "./hook/useAppContext";
+import fileToBase64 from "./utils/fileToBase64";
 
 const App = () => {
   const context = useContext(AppContent);
@@ -14,12 +15,16 @@ const App = () => {
     const files = e.target.files;
     if (!files) return;
 
-    const metaList = Array.from(file).map((f) => ({
-      name: f.name,
-      size: f.size,
-      type: f.type,
-    }));
+    const metaList = await Promise.all(
+      Array.from(files).map(async (f) => ({
+        name: f.name,
+        size: f.size,
+        type: f.type,
+        base64: await fileToBase64(f),
+      }))
+    );
     setFile(metaList);
+    console.log(typeof metaList[0].base64)
   };
 
   const handleFileUpload = () => {
@@ -78,10 +83,10 @@ const App = () => {
               >
                 {/* Image Preview */}
                 <img
-                  src={""}
-                  alt={fi.name}
+                  src={fi.base64}
+                  alt={""}
                   className="h-20 w-20 rounded-lg object-cover shadow-sm border"
-                />
+                  />
 
                 {/* File Details */}
                 <div className="flex flex-col flex-1 overflow-hidden">
