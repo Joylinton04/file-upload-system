@@ -2,22 +2,24 @@ import express from "express";
 import multer from "multer";
 import fs from "fs/promises";
 import path from "path";
-import { constants } from 'fs';
+import { constants } from "fs";
+import cors from 'cors'
 
 const app = express();
 app.use(express.json());
+app.use(cors())
 
 const dir = "./public";
 
 const checkDirectory = async () => {
-    try{
-        await fs.access(dir, constants.F_OK)
-    }catch(err) {
-        fs.mkdir(dir)
-    }
-}
+  try {
+    await fs.access(dir, constants.F_OK);
+  } catch (err) {
+    fs.mkdir(dir);
+  }
+};
 
-checkDirectory(dir)
+checkDirectory(dir);
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -32,12 +34,20 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error("Only JPEG JPG AND PNG files are allowed"), false);
+    }
+    cb(null, true);
+  },
+});
 
 app.get("/", (req, res) => {
   res.send("API is working");
 });
-
 
 //handle file upload
 
@@ -49,7 +59,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     res.json({
       success: true,
       message: "File uploaded successfully",
-      metadata: metadata,
+      file: req.file,
     });
   } catch (err) {
     res.json({ success: false, message: err.message });
