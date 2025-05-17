@@ -1,9 +1,10 @@
 import { ArrowUp, File } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
-import { toast } from "react-toastify";
+import { toast, ToastContainer } from "react-toastify";
 import React, { useContext, useState, type ChangeEvent } from "react";
 import { AppContent } from "./context/AppContext";
 import fileToBase64 from "./utils/fileToBase64";
+import axios from "axios";
 
 const App = () => {
   const context = useContext(AppContent);
@@ -15,9 +16,9 @@ const App = () => {
   const handleChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-  
+
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
-  
+
     const validFiles = Array.from(files).filter((file) => {
       const isValid = allowedTypes.includes(file.type);
       if (!isValid) {
@@ -25,9 +26,9 @@ const App = () => {
       }
       return isValid;
     });
-  
+
     if (validFiles.length === 0) return;
-  
+
     const metaList = await Promise.all(
       validFiles.map(async (f) => ({
         id: uuidv4(),
@@ -37,26 +38,62 @@ const App = () => {
         base64: await fileToBase64(f),
       }))
     );
-    console.log(metaList)
-  
-    setFile((prev) => [...(prev || []), ...metaList]);
-  };  
-  
 
-  const handleFileUpload = () => {
-    console.log("uploaded");
+    setFile((prev) => [...(prev || []), ...metaList]);
+  };
+
+  const handleFileUpload = async (id: string) => {
+    const selectedFile = file.find((fi) => fi.id === id);
+    if (!selectedFile) return;
+
+    const blob = await fetch(selectedFile.base64)
+      .then((res) => res.blob())
+      .catch((err) => {
+        console.error("Error fetching blob:", err);
+        return null;
+      });
+
+    if (!blob) return;
+
+    const formData = new FormData();
+    formData.append("file", blob, selectedFile.name);
+
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/upload`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+      console.log(response.data)
+      if (response.data?.success) {
+        toast.success(response.data.message || "Upload successful");
+      } else {
+        toast.error("Upload failed");
+      }
+      
+      
+      // setFile((prev) => prev.filter((file) => file.id !== id));
+    } catch (err) {
+      console.error("FormData upload failed:", err);
+    }
   };
 
   const handleFileRemove = (id: string) => {
     setFile((prev) => prev.filter((file) => file.id !== id));
   };
-  
 
   return (
     <div className="min-h-screen w-full font-default py-10">
+      <ToastContainer/>
       {/* Header */}
       <div className="w-full border bg-black text-white fixed top-0 left-0 right-0 z-10 flex items-center justify-center p-6 font-bold">
-        <p>Save you images on this server at zero cost and retrieve it anytime!</p>
+        <p>
+          Save you images on this server at zero cost and retrieve it anytime!
+        </p>
       </div>
 
       {/* Main content */}
@@ -106,6 +143,10 @@ const App = () => {
                   className="h-20 w-20 rounded-lg object-cover shadow-sm border"
                 />
 
+                <div>
+                  
+                </div>
+
                 {/* File Details */}
                 <div className="flex flex-col flex-1 overflow-hidden">
                   <h3 className="text-sm font-medium truncate">{fi.name}</h3>
@@ -114,10 +155,11 @@ const App = () => {
                   </p>
                 </div>
 
+
                 {/* Actions */}
                 <div className="flex flex-col gap-2">
                   <button
-                    onClick={handleFileUpload}
+                    onClick={() => handleFileUpload(fi.id)}
                     className="bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-3 rounded transition"
                   >
                     Upload
