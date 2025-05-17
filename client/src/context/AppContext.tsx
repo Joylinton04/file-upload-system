@@ -1,6 +1,7 @@
 import React, { createContext, useEffect, useState, type ReactNode } from "react";
 
 interface FileMeta {
+  id: string,
   name: string;
   size: number;
   type: string;
