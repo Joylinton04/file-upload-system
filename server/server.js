@@ -4,9 +4,13 @@ import fs from "fs/promises";
 import path from "path";
 import { constants } from "fs";
 import cors from "cors";
+import { fileURLToPath } from "url";
 
 const app = express();
 const allowedOrigins = ["http://localhost:5173"];
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 app.use(express.json());
 app.use(cors({ origin: allowedOrigins }));
@@ -45,11 +49,11 @@ const upload = multer({
     cb(null, true);
   },
 });
+app.use("/public", express.static(path.join(__dirname, "public")));
 
 app.get("/", (req, res) => {
   res.send("API is working");
 });
-
 //handle file upload
 
 app.post("/upload", upload.single("file"), async (req, res) => {
@@ -57,10 +61,11 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 
   try {
     const metadata = await fs.stat(req.file.path);
+    const fileUrl = `${req.protocol}://${req.get('host')}/public/${req.file.filename}`;
     res.status(200).json({
       success: true,
       message: "File uploaded successfully",
-      file: req.file,
+      fileUrl,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
