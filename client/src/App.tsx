@@ -1,7 +1,8 @@
 import { ArrowUp, File } from "lucide-react";
+import { v4 as uuidv4 } from "uuid";
+import { toast } from "react-toastify";
 import React, { useContext, useState, type ChangeEvent } from "react";
 import { AppContent } from "./context/AppContext";
-import { useAppContext } from "./hook/useAppContext";
 import fileToBase64 from "./utils/fileToBase64";
 
 const App = () => {
@@ -14,31 +15,48 @@ const App = () => {
   const handleChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-
+  
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
+  
+    const validFiles = Array.from(files).filter((file) => {
+      const isValid = allowedTypes.includes(file.type);
+      if (!isValid) {
+        toast.error(`${file.name} is not a supported file format.`);
+      }
+      return isValid;
+    });
+  
+    if (validFiles.length === 0) return;
+  
     const metaList = await Promise.all(
-      Array.from(files).map(async (f) => ({
+      validFiles.map(async (f) => ({
+        id: uuidv4(),
         name: f.name,
         size: f.size,
         type: f.type,
         base64: await fileToBase64(f),
       }))
     );
-    setFile(metaList);
-    console.log(typeof metaList[0].base64)
-  };
+    console.log(metaList)
+  
+    setFile((prev) => [...(prev || []), ...metaList]);
+  };  
+  
 
   const handleFileUpload = () => {
     console.log("uploaded");
   };
-  const handleFileRemove = () => {
-    console.log("File Removed");
+
+  const handleFileRemove = (id: string) => {
+    setFile((prev) => prev.filter((file) => file.id !== id));
   };
+  
 
   return (
     <div className="min-h-screen w-full font-default py-10">
       {/* Header */}
       <div className="w-full border bg-black text-white fixed top-0 left-0 right-0 z-10 flex items-center justify-center p-6 font-bold">
-        <p>Upload images here!</p>
+        <p>Save you images on this server at zero cost and retrieve it anytime!</p>
       </div>
 
       {/* Main content */}
@@ -86,7 +104,7 @@ const App = () => {
                   src={fi.base64}
                   alt={""}
                   className="h-20 w-20 rounded-lg object-cover shadow-sm border"
-                  />
+                />
 
                 {/* File Details */}
                 <div className="flex flex-col flex-1 overflow-hidden">
@@ -105,7 +123,7 @@ const App = () => {
                     Upload
                   </button>
                   <button
-                    onClick={handleFileRemove}
+                    onClick={() => handleFileRemove(fi.id)}
                     className="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded transition"
                   >
                     Remove
