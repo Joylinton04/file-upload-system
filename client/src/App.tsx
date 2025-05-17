@@ -7,6 +7,7 @@ import fileToBase64 from "./utils/fileToBase64";
 import axios from "axios";
 
 const App = () => {
+  const [progress, setProgress] = useState(0)
   const context = useContext(AppContent);
   if (!context) {
     return <p>Loading...</p>;
@@ -66,9 +67,16 @@ const App = () => {
           headers: {
             "Content-Type": "multipart/form-data",
           },
+          onUploadProgress: (ProgressEvent) => {
+            const totalUpload = ProgressEvent?.total
+            if(totalUpload) {
+              const percentageProgress = Math.round((ProgressEvent.loaded * 100) / totalUpload)
+              setProgress(percentageProgress)
+              console.log(percentageProgress)
+            }
+          }
         }
       );
-      console.log(response.data)
       if (response.data?.success) {
         toast.success(response.data.message || "Upload successful");
       } else {
@@ -76,8 +84,9 @@ const App = () => {
       }
       
       
-      // setFile((prev) => prev.filter((file) => file.id !== id));
+      setProgress(0)
     } catch (err) {
+      setProgress(0)
       console.error("FormData upload failed:", err);
     }
   };
@@ -143,8 +152,9 @@ const App = () => {
                   className="h-20 w-20 rounded-lg object-cover shadow-sm border"
                 />
 
-                <div>
-                  
+                <div className="absolute top-0 left-0 rounded-xl w-full h-2" 
+                      style={{width: (`${progress}%`)}}>
+                  <div className="bg-blue-600 h-full rounded-xl"></div>
                 </div>
 
                 {/* File Details */}
@@ -160,13 +170,15 @@ const App = () => {
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={() => handleFileUpload(fi.id)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-3 rounded transition"
+                    className={`bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-3 rounded transition ${!!progress ? 'opacity-5' : 0}`}
+                    disabled={!!progress}
                   >
                     Upload
                   </button>
                   <button
                     onClick={() => handleFileRemove(fi.id)}
-                    className="bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded transition"
+                    className={`bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded transition ${!!progress ? 'opacity-5' : 0}`}
+                    disabled={!!progress}
                   >
                     Remove
                   </button>
