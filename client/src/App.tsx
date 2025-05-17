@@ -82,6 +82,7 @@ const App = () => {
       } else {
         toast.error("Upload failed");
       }
+      console.log(response.data)
       
       
       setProgress(0)
