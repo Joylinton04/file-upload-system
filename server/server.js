@@ -3,12 +3,13 @@ import multer from "multer";
 import fs from "fs/promises";
 import path from "path";
 import { constants } from "fs";
-import cors from 'cors'
+import cors from "cors";
 
 const app = express();
-app.use(express.json());
-app.use(cors())
+const allowedOrigins = ["http://localhost:5173"];
 
+app.use(express.json());
+app.use(cors({ origin: allowedOrigins }));
 const dir = "./public";
 
 const checkDirectory = async () => {
@@ -33,7 +34,7 @@ const storage = multer.diskStorage({
     );
   },
 });
-
+//filter size,only pictures allowed
 const upload = multer({
   storage: storage,
   fileFilter: (req, file, cb) => {
@@ -56,13 +57,13 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 
   try {
     const metadata = await fs.stat(req.file.path);
-    res.json({
+    res.status(200).json({
       success: true,
       message: "File uploaded successfully",
       file: req.file,
     });
   } catch (err) {
-    res.json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: err.message });
   }
 });
 
