@@ -5,12 +5,16 @@ import path from "path";
 import { constants } from "fs";
 import cors from "cors";
 import { fileURLToPath } from "url";
+import connectMongodb from "./config/configDB.js";
+import fileModel from "./models/file.model.js";
 
 const app = express();
 const allowedOrigins = ["http://localhost:5173"];
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+connectMongodb();
 
 app.use(express.json());
 app.use(cors({ origin: allowedOrigins }));
@@ -58,17 +62,33 @@ app.get("/", (req, res) => {
 
 app.post("/upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.json({ success: false, message: "No file found" });
+  const { originalname, size } = req.file;
 
   try {
-    const metadata = await fs.stat(req.file.path);
-    const fileUrl = `${req.protocol}://${req.get('host')}/public/${req.file.filename}`;
+    const fileUrl = `${req.protocol}://${req.get("host")}/public/${
+      req.file.filename
+    }`;
+
+    const newFile = await fileModel({ name: originalname, size, fileUrl });
+
+    newFile.save();
+
     res.status(200).json({
       success: true,
       message: "File uploaded successfully",
-      fileUrl,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+app.get("/files-uploaded", async (req, res) => {
+  try {
+    const getAllFiles = await fileModel.find();
+    res.send(getAllFiles);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: "Internal Server error" });
   }
 });
 
