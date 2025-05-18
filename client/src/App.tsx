@@ -1,18 +1,31 @@
-import { ArrowUp, File } from "lucide-react";
+import { ArrowUp, File, Upload } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { toast, ToastContainer } from "react-toastify";
-import React, { useContext, useState, type ChangeEvent } from "react";
+import React, {
+  useContext,
+  useEffect,
+  useState,
+  type ChangeEvent,
+} from "react";
 import { AppContent } from "./context/AppContext";
 import fileToBase64 from "./utils/fileToBase64";
 import axios from "axios";
 
+interface FileDataType {
+  id: string,
+  name: string;
+  size: number;
+  fileUrl: string;
+}
+
 const App = () => {
-  const [progress, setProgress] = useState(0)
+  const [progress, setProgress] = useState(0);
+  const [uploadedFiles, setUploadedFiles] = useState<FileDataType[]>([]);
   const context = useContext(AppContent);
   if (!context) {
     return <p>Loading...</p>;
   }
-  const { file, setFile } = context;
+  const { file, setFile, handleStatus, setHandleStatus } = context;
 
   const handleChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -68,13 +81,14 @@ const App = () => {
             "Content-Type": "multipart/form-data",
           },
           onUploadProgress: (ProgressEvent) => {
-            const totalUpload = ProgressEvent?.total
-            if(totalUpload) {
-              const percentageProgress = Math.round((ProgressEvent.loaded * 100) / totalUpload)
-              setProgress(percentageProgress)
-              console.log(percentageProgress)
+            const totalUpload = ProgressEvent?.total;
+            if (totalUpload) {
+              const percentageProgress = Math.round(
+                (ProgressEvent.loaded * 100) / totalUpload
+              );
+              setProgress(percentageProgress);
             }
-          }
+          },
         }
       );
       if (response.data?.success) {
@@ -82,12 +96,10 @@ const App = () => {
       } else {
         toast.error("Upload failed");
       }
-      console.log(response.data)
-      
-      
-      setProgress(0)
+
+      setProgress(0);
     } catch (err) {
-      setProgress(0)
+      setProgress(0);
       console.error("FormData upload failed:", err);
     }
   };
@@ -96,9 +108,25 @@ const App = () => {
     setFile((prev) => prev.filter((file) => file.id !== id));
   };
 
+  const getUploadedFiles = async () => {
+    try {
+      const reponse = await axios.get(
+        `${import.meta.env.VITE_API_URL}/files-uploaded`
+      );
+      setUploadedFiles(reponse.data);
+      console.log(reponse.data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  useEffect(() => {
+    getUploadedFiles();
+  }, [handleStatus]);
+
   return (
     <div className="min-h-screen w-full font-default py-10">
-      <ToastContainer/>
+      <ToastContainer />
       {/* Header */}
       <div className="w-full border bg-black text-white fixed top-0 left-0 right-0 z-10 flex items-center justify-center p-6 font-bold">
         <p>
@@ -135,58 +163,118 @@ const App = () => {
 
         {/* Uploaded Files Section */}
         {file.length > 0 && (
-          <h1 className="mt-10 w-full max-w-2xl font-semibold text-lg mb-2">
-            Your files
-          </h1>
+          <div className="mt-10 w-full max-w-2xl mb-2 flex justify-between items-center">
+            <h1
+              className="font-semibold cursor-pointer hover:underline"
+              onClick={() => setHandleStatus("local")}
+            >
+              Your files
+            </h1>
+            <div
+              className="font-semibold cursor-pointer underline"
+              onClick={() => setHandleStatus("uploaded")}
+            >
+              View uploaded files
+            </div>
+          </div>
         )}
-        <div className="w-full max-w-2xl max-h-[30rem] overflow-y-scroll">
-          {file.length > 0 &&
-            Array.from(file).map((fi, index) => (
+
+        {handleStatus === "local" ? (
+          <div className="w-full max-w-2xl max-h-[30rem] overflow-y-scroll">
+            {file.length > 0 &&
+              Array.from(file).map((fi, index) => (
+                <div
+                  key={index}
+                  className="shadow-md relative flex gap-4 items-center border rounded-xl p-4 bg-white mt-4"
+                >
+                  {/* Image Preview */}
+                  <img
+                    src={fi.base64}
+                    alt={""}
+                    className="h-20 w-20 rounded-lg object-cover shadow-sm border"
+                  />
+
+                  <div
+                    className="absolute top-0 left-0 rounded-xl w-full h-2"
+                    style={{ width: `${progress}%` }}
+                  >
+                    <div className="bg-blue-600 h-full rounded-xl"></div>
+                  </div>
+
+                  {/* File Details */}
+                  <div className="flex flex-col flex-1 overflow-hidden">
+                    <h3 className="text-sm font-medium truncate">{fi.name}</h3>
+                    <p className="text-xs text-gray-500">
+                      {(fi.size / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => handleFileUpload(fi.id)}
+                      className={`bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-3 rounded transition ${
+                        !!progress ? "opacity-5" : 0
+                      }`}
+                      disabled={!!progress}
+                    >
+                      Upload
+                    </button>
+                    <button
+                      onClick={() => handleFileRemove(fi.id)}
+                      className={`bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded transition ${
+                        !!progress ? "opacity-5" : 0
+                      }`}
+                      disabled={!!progress}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        ) : (
+          <div className="w-full max-w-2xl max-h-[30rem] overflow-y-scroll">
+            {uploadedFiles.length > 0 ? (
+              uploadedFiles.map((fi, index) => (
               <div
-                key={index}
-                className="shadow-md relative flex gap-4 items-center border rounded-xl p-4 bg-white mt-4"
-              >
-                {/* Image Preview */}
-                <img
-                  src={fi.base64}
-                  alt={""}
-                  className="h-20 w-20 rounded-lg object-cover shadow-sm border"
-                />
+                  key={index}
+                  className="shadow-md relative flex gap-4 items-center border rounded-xl p-4 bg-white mt-4"
+                >
+                  {/* Image Preview */}
+                  <img
+                    src={fi.fileUrl}
+                    alt={""}
+                    className="h-20 w-20 rounded-lg object-cover shadow-sm border"
+                  />
 
-                <div className="absolute top-0 left-0 rounded-xl w-full h-2" 
-                      style={{width: (`${progress}%`)}}>
-                  <div className="bg-blue-600 h-full rounded-xl"></div>
+                  {/* File Details */}
+                  <a className="flex flex-col flex-1 overflow-hidden" href={fi.fileUrl}>
+                    <h3 className="text-sm font-medium truncate">{fi.name}</h3>
+                    <p className="text-xs text-gray-500">
+                      {(fi.size / (1024 * 1024)).toFixed(2)} MB
+                    </p>
+                  </a>
+
+                  {/* Actions */}
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => handleFileUpload(fi.id)}
+                      className={`bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-3 rounded transition ${
+                        !!progress ? "opacity-5" : 0
+                      }`}
+                      disabled={!!progress}
+                    >
+                      Download
+                    </button>
+                  </div>
                 </div>
-
-                {/* File Details */}
-                <div className="flex flex-col flex-1 overflow-hidden">
-                  <h3 className="text-sm font-medium truncate">{fi.name}</h3>
-                  <p className="text-xs text-gray-500">
-                    {(fi.size / (1024 * 1024)).toFixed(2)} MB
-                  </p>
-                </div>
-
-
-                {/* Actions */}
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => handleFileUpload(fi.id)}
-                    className={`bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-3 rounded transition ${!!progress ? 'opacity-5' : 0}`}
-                    disabled={!!progress}
-                  >
-                    Upload
-                  </button>
-                  <button
-                    onClick={() => handleFileRemove(fi.id)}
-                    className={`bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded transition ${!!progress ? 'opacity-5' : 0}`}
-                    disabled={!!progress}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            ))}
-        </div>
+            ))
+            ) : (
+              <h1>No Files Uploaded</h1>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
