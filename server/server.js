@@ -62,14 +62,14 @@ app.get("/", (req, res) => {
 
 app.post("/upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.json({ success: false, message: "No file found" });
-  const { originalname, size } = req.file;
+  const { originalname, size, filename } = req.file;
 
   try {
     const fileUrl = `${req.protocol}://${req.get("host")}/public/${
       req.file.filename
     }`;
 
-    const newFile = await fileModel({ name: originalname, size, fileUrl });
+    const newFile = await fileModel({ name: originalname, size, fileUrl, filename });
 
     newFile.save();
 
@@ -91,6 +91,25 @@ app.get("/files-uploaded", async (req, res) => {
     res.status(500).json({ success: false, message: "Internal Server error" });
   }
 });
+
+app.delete('/files-uploaded/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const fileData = await fileModel.findByIdAndDelete(id);
+    if (!fileData) {
+      return res.status(404).json({ success: false, message: 'No file found' });
+    }
+
+    await fs.unlink(path.join(__dirname, `/public/${fileData.filename}`))
+
+    res.json({ success: true, message: "File deleted successfully" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 
 app.listen(3000, () => {
   console.log("Server is running on port: 3000");

@@ -12,7 +12,7 @@ import fileToBase64 from "./utils/fileToBase64";
 import axios from "axios";
 
 interface FileDataType {
-  id: string,
+  _id: string;
   name: string;
   size: number;
   fileUrl: string;
@@ -54,6 +54,7 @@ const App = () => {
     );
 
     setFile((prev) => [...(prev || []), ...metaList]);
+    setHandleStatus('local')
   };
 
   const handleFileUpload = async (id: string) => {
@@ -114,7 +115,6 @@ const App = () => {
         `${import.meta.env.VITE_API_URL}/files-uploaded`
       );
       setUploadedFiles(reponse.data);
-      console.log(reponse.data);
     } catch (err) {
       console.log(err);
     }
@@ -123,6 +123,30 @@ const App = () => {
   useEffect(() => {
     getUploadedFiles();
   }, [handleStatus]);
+
+  const handleFileDownload = (fileUrl: string, fileName: string) => {
+    const link = document.createElement("a");
+    link.href = fileUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    console.log(link)
+  };
+
+  const handleDeleteFile = async (id: string) => {
+    try{
+      const {data} = await axios.delete(`${import.meta.env.VITE_API_URL}/files-uploaded/${id}`)
+      if(data.success){
+        toast.success('File deleted successfully')
+      }
+      else {
+        toast.error(data.message)
+      }
+    }catch(err) {
+      console.log(err)
+    }
+  }
 
   return (
     <div className="min-h-screen w-full font-default py-10">
@@ -237,7 +261,7 @@ const App = () => {
           <div className="w-full max-w-2xl max-h-[30rem] overflow-y-scroll">
             {uploadedFiles.length > 0 ? (
               uploadedFiles.map((fi, index) => (
-              <div
+                <div
                   key={index}
                   className="shadow-md relative flex gap-4 items-center border rounded-xl p-4 bg-white mt-4"
                 >
@@ -249,7 +273,10 @@ const App = () => {
                   />
 
                   {/* File Details */}
-                  <a className="flex flex-col flex-1 overflow-hidden" href={fi.fileUrl}>
+                  <a
+                    className="flex flex-col flex-1 overflow-hidden"
+                    href={fi.fileUrl}
+                  >
                     <h3 className="text-sm font-medium truncate">{fi.name}</h3>
                     <p className="text-xs text-gray-500">
                       {(fi.size / (1024 * 1024)).toFixed(2)} MB
@@ -259,19 +286,21 @@ const App = () => {
                   {/* Actions */}
                   <div className="flex flex-col gap-2">
                     <button
-                      onClick={() => handleFileUpload(fi.id)}
-                      className={`bg-blue-600 hover:bg-blue-700 text-white text-xs py-1 px-3 rounded transition ${
-                        !!progress ? "opacity-5" : 0
-                      }`}
-                      disabled={!!progress}
+                      onClick={() => handleFileDownload(fi.fileUrl, fi.name)}
+                      className={`bg-green-600 hover:bg-green-700 text-white text-xs py-1 px-3 rounded transition`}
                     >
                       Download
                     </button>
+                    <button
+                      onClick={() => handleDeleteFile(fi._id)}
+                      className={`bg-red-500 hover:bg-red-600 text-white text-xs py-1 px-3 rounded transition}`}>
+                      Delete Image
+                    </button>
                   </div>
                 </div>
-            ))
+              ))
             ) : (
-              <h1>No Files Uploaded</h1>
+              <h1 className="text-center text-red-500">No Files Uploaded</h1>
             )}
           </div>
         )}
