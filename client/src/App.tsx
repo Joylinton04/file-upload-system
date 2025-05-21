@@ -138,6 +138,7 @@ const App = () => {
     try{
       const {data} = await axios.delete(`${import.meta.env.VITE_API_URL}/files-uploaded/${id}`)
       if(data.success){
+        setUploadedFiles((prev) => prev.filter((file => file._id != id)))
         toast.success('File deleted successfully')
       }
       else {
