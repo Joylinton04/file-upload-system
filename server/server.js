@@ -2,11 +2,10 @@ import express from "express";
 import multer from "multer";
 import fs from "fs/promises";
 import path from "path";
-import { constants } from "fs";
 import cors from "cors";
 import { fileURLToPath } from "url";
 import connectMongodb from "./config/configDB.js";
-import fileModel from "./models/file.model.js";
+import uploadRoute from "./route/uploadRoute.js";
 
 const app = express();
 const allowedOrigins = ["http://localhost:5173"];
@@ -18,97 +17,35 @@ connectMongodb();
 
 app.use(express.json());
 app.use(cors({ origin: allowedOrigins }));
-const dir = "./public";
 
-const checkDirectory = async () => {
-  try {
-    await fs.access(dir, constants.F_OK);
-  } catch (err) {
-    fs.mkdir(dir);
-  }
-};
-
-checkDirectory(dir);
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(
-      null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
-    );
-  },
-});
-//filter size,only pictures allowed
-const upload = multer({
-  storage: storage,
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ["image/jpeg", "image/jpg", "image/png"];
-    if (!allowedTypes.includes(file.mimetype)) {
-      return cb(new Error("Only JPEG JPG AND PNG files are allowed"), false);
-    }
-    cb(null, true);
-  },
-});
 app.use("/public", express.static(path.join(__dirname, "public")));
+app.use('/upload', uploadRoute)
 
 app.get("/", (req, res) => {
   res.send("API is working");
 });
-//handle file upload
 
-app.post("/upload", upload.single("file"), async (req, res) => {
-  if (!req.file) return res.json({ success: false, message: "No file found" });
-  const { originalname, size, filename } = req.file;
-
-  try {
-    const fileUrl = `${req.protocol}://${req.get("host")}/public/${
-      req.file.filename
-    }`;
-
-    const newFile = await fileModel({ name: originalname, size, fileUrl, filename });
-
-    newFile.save();
-
-    res.status(200).json({
-      success: true,
-      message: "File uploaded successfully",
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
-
-app.get("/files-uploaded", async (req, res) => {
-  try {
-    const getAllFiles = await fileModel.find();
-    res.send(getAllFiles);
-  } catch (err) {
-    console.log(err);
-    res.status(500).json({ success: false, message: "Internal Server error" });
-  }
-});
-
-app.delete('/files-uploaded/:id', async (req, res) => {
-  const { id } = req.params;
-
-  try {
-    const fileData = await fileModel.findByIdAndDelete(id);
-    if (!fileData) {
-      return res.status(404).json({ success: false, message: 'No file found' });
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    // Handle specific Multer errors
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ success: false, message: 'File too large. Max size is 2MB.' });
     }
 
-    await fs.unlink(path.join(__dirname, `/public/${fileData.filename}`))
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      console.log(err)
+      return res.status(400).json({ success: false, message: 'Unsupported file type.' });
+    }
 
-    res.json({ success: true, message: "File deleted successfully" });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ success: false, message: 'Server error' });
+    return res.status(400).json({ success: false, message: err.message });
+  } else if (err) {
+    // Handle general errors
+    return res.status(500).json({ success: false, message: 'An error occurred during upload.' });
   }
+
+  next();
 });
+
 
 
 app.listen(3000, () => {
