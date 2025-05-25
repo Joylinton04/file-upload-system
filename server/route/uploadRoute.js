@@ -1,6 +1,7 @@
 import express from "express";
 import upload from "../middleware/multerMiddleware.js";
 import fileModel from "../models/file.model.js";
+import path from "path";
 
 const uploadRoute = express.Router()
 
@@ -30,7 +31,7 @@ uploadRoute.post("/", upload.single("file"), async (req, res) => {
 
 uploadRoute.get("/files-uploaded", async (req, res) => {
   try {
-    const getAllFiles = await fileModel.find();
+  const getAllFiles = await fileModel.find();
     res.send(getAllFiles);
   } catch (err) {
     console.log(err);

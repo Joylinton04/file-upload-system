@@ -1,6 +1,7 @@
 import multer from "multer";
 import fs from 'fs/promises'
 import { constants } from "fs";
+import path from "path";
 
 const dir = "./public";
 
